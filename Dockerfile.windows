@@ -1,21 +1,11 @@
-# Windows-based Dockerfile for Java Spring Boot backend
-FROM mcr.microsoft.com/openjdk/jdk:21-windowsservercore-ltsc2019
+# Alternative Windows-based Dockerfile using pre-built Java image
+FROM eclipse-temurin:21-jdk-windowsservercore-1809
 
 # Set shell to PowerShell
 SHELL ["powershell", "-Command", "$ErrorActionPreference = 'Stop'; $ProgressPreference = 'SilentlyContinue';"]
 
-# Install Chocolatey for package management
-RUN Set-ExecutionPolicy Bypass -Scope Process -Force; \
-    [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072; \
-    iex ((New-Object System.Net.WebClient).DownloadString('https://community.chocolatey.org/install.ps1'))
-
-# Install Git and GitHub CLI
-RUN choco install -y git ; \
-    choco install -y gh ; \
-    refreshenv
-
 # Set working directory
-WORKDIR C:\app
+WORKDIR C:\\app
 
 # Copy Gradle wrapper and build files
 COPY gradlew.bat ./
@@ -29,12 +19,12 @@ COPY src/ ./src/
 # Build the application
 RUN .\gradlew.bat build
 
+# Create startup script to find and run the JAR file
+RUN echo '$jarFile = Get-ChildItem -Path "build/libs" -Filter "jerm-java-*.jar" | Select-Object -First 1' > start.ps1 ; \
+    echo 'if ($jarFile) { java -jar $jarFile.FullName } else { throw "No JAR file found" }' >> start.ps1
+
 # Expose port
 EXPOSE 8080
-
-# Create startup script to find and run the JAR file
-RUN echo '$jarFile = Get-ChildItem -Path "build/libs" -Filter "*.jar" | Select-Object -First 1' > start.ps1 ; \
-    echo 'if ($jarFile) { java -jar $jarFile.FullName } else { throw "No JAR file found" }' >> start.ps1
 
 # Run the application
 CMD ["powershell", "-ExecutionPolicy", "Bypass", "-File", "C:\\app\\start.ps1"] 
